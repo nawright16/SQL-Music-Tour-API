@@ -1,6 +1,7 @@
 const events = require('express').Router()
 const db = require('../models')
-const { Event } = db
+const { Event, Stage, StageEvent, SetTime, MeetGreet, Band } = db
+const { Op } = require('sequelize');
 
 
 //CREATE
@@ -17,21 +18,55 @@ events.post('/', async (req, res) => {
 })
 
 //READ
-events.get('/', async(req,res) => {
+events.get('/', async (req, res) => {
     try {
-        const foundEvents= await Event.findAll()
+        const foundEvents = await Event.findAll({
+            order: [ [ 'date', 'ASC' ] ],
+            where: {
+                name: { [Op.like]: `%${req.query.name ? req.query.name : ''}%` }
+            }
+        })
         res.status(200).json(foundEvents)
     } catch (error) {
         res.status(500).json(error)
     }
 })
-
-events.get('/:id', async(req,res) => {
+events.get('/:name', async (req, res) => {
     try {
-        const foundEvents= await Event.findOne({
-            where:{event_id: req.params.id}
+        const foundEvent = await Event.findOne({
+            where: { name: req.params.id },
+            include: [
+                {
+                    model: MeetGreet,
+                    as: 'meet_greet',
+                    include: {
+                        model: Band,
+                        as: 'band'
+                    }
+                },
+                {
+                    model: SetTime,
+                    as: 'set_times',
+                    include: [
+                        {
+                            model: Band,
+                            as: 'band',
+                        },
+                        {
+                            model: Stage,
+                            as: 'stage'
+                        }
+                    ]
+
+                },
+                {
+                    model: Stage,
+                    as: 'stages',
+                    through:'StageEvent'
+                }
+            ]
         })
-        res.status(200).json(foundEvents)
+        res.status(200).json(foundEvent)
     } catch (error) {
         res.status(500).json(error)
     }
